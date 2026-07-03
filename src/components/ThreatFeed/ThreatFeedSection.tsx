@@ -4,6 +4,7 @@ import { SectionHeader } from "../landing/Section";
 import { useThreatFeed, Threat } from "../ThreatMap/useThreatFeed";
 import { countryCoordinates } from "../ThreatMap/countryCoordinates";
 import { AISituationReport } from "../dashboard/AISituationReport";
+import { toast } from "sonner";
 
 const DEMO_ATTACKS: Partial<Threat>[] = [
   {
@@ -106,6 +107,11 @@ export function ThreatFeedSection({ onThreatSelect }: ThreatFeedSectionProps) {
     };
 
     setThreats((prev) => [newThreat, ...prev.slice(0, 19)]);
+    
+    toast.error(`Injected: ${newThreat.category} Threat`, {
+      description: `Target: ${newThreat.targetCity} | Actor: ${newThreat.attackerActor}`,
+      style: { borderColor: "#FF4D6D", backgroundColor: "rgba(255, 77, 109, 0.05)", color: "#FF4D6D" }
+    });
   }, [setThreats]);
 
   const handleThreatSelect = useCallback(

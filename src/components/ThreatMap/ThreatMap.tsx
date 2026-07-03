@@ -36,8 +36,7 @@ export default function ThreatMap() {
       <div className="relative">
       {/* Map Container */}
       <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/40 p-4 backdrop-blur-xl md:p-6 shadow-[0_20px_50px_-20px_rgba(0,229,255,0.2)] relative group">
-          
-          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#040810] via-[#05070A] to-[#090514] flex items-center justify-center">
+          <div className="relative aspect-[4/3] md:aspect-[16/9] w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#040810] via-[#05070A] to-[#090514] flex items-center justify-center">
             
             {/* Layer 1: Dotted Matrix World Projection Mask */}
             <svg viewBox="0 0 1000 500" className="absolute inset-0 h-full w-full opacity-30 select-none pointer-events-none">

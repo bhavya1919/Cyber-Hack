@@ -3,7 +3,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import React, { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { Shield, Brain, Activity, ShieldAlert, FileText, User, ArrowLeft, Radio, Network } from "lucide-react";
+import { Shield, Brain, Activity, FileText, ArrowLeft, Radio, Network } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Import tabs
@@ -16,6 +16,12 @@ import { ReportsTab } from "@/components/dashboard/ReportsTab";
 import { PresentationControls } from "@/components/dashboard/PresentationControls";
 import { useDashboardStore } from "@/core/store/dashboardStore";
 import { OverviewCards } from "@/components/dashboard/OverviewCards/OverviewCards";
+import { BootSequence } from "@/components/BootSequence";
+import { NotificationCenter } from "@/components/NotificationCenter";
+import { VoiceControlButton } from "@/components/VoiceControl";
+import { speechManager } from "@/core/speech";
+
+const BOOT_SESSION_KEY = "cyber_hack_booted";
 
 function DashboardConsole() {
   const [activeTab, setActiveTab] = useState<"cc" | "analytics" | "copilot" | "risk" | "reports">("cc");
@@ -24,9 +30,25 @@ function DashboardConsole() {
 
   // Client side mount check
   const [mounted, setMounted] = useState(false);
+  // Boot sequence gating — only once per session
+  const [bootDone, setBootDone] = useState(false);
+
   useEffect(() => {
     setMounted(true);
+    const alreadyBooted = sessionStorage.getItem(BOOT_SESSION_KEY) === "true";
+    if (alreadyBooted) {
+      setBootDone(true);
+    }
   }, []);
+
+  const handleBootComplete = () => {
+    sessionStorage.setItem(BOOT_SESSION_KEY, "true");
+    setBootDone(true);
+    // Mission Commander announces dashboard is live
+    setTimeout(() => {
+      speechManager.speak({ eventType: "boot_complete" });
+    }, 800);
+  };
 
   if (!mounted) {
     return (
@@ -34,6 +56,10 @@ function DashboardConsole() {
         <LoaderComponent />
       </div>
     );
+  }
+
+  if (!bootDone) {
+    return <BootSequence onComplete={handleBootComplete} />;
   }
 
   const tabs = [
@@ -73,6 +99,12 @@ function DashboardConsole() {
               <span className="h-4 w-px bg-white/10" />
               <span>STATION: OP-CENTRAL // ANALYST_4812</span>
             </div>
+
+            {/* Mission Commander Voice Control */}
+            <VoiceControlButton />
+
+            {/* Notification Center Bell */}
+            <NotificationCenter />
 
             <Link
               to="/"
@@ -127,10 +159,10 @@ function DashboardConsole() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
               className="h-full"
             >
               {activeTab === "cc" && (

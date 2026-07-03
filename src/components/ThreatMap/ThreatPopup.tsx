@@ -57,6 +57,14 @@ export const ThreatPopup: React.FC<ThreatPopupProps> = ({ threat, onClose }) => 
   const severityScore = { crit: "9.8 CRIT", high: "7.8 HIGH", med: "5.4 MED", low: "2.1 LOW" }[severity];
   const aiParagraph = generateAIAnalysis(threat);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
     <div className="absolute bottom-4 left-4 right-4 md:right-4 md:top-4 md:bottom-4 md:left-auto md:w-80 glass-card p-5 border border-white/10 shadow-2xl flex flex-col justify-between z-30 transition-all duration-300 animate-in fade-in slide-in-from-bottom-8 md:slide-in-from-right-8 duration-200 max-h-[85%] md:max-h-none overflow-y-auto">
       <div>
@@ -68,6 +76,7 @@ export const ThreatPopup: React.FC<ThreatPopupProps> = ({ threat, onClose }) => 
           </div>
           <button
             onClick={onClose}
+            aria-label="Close threat details"
             className="text-white/40 hover:text-white transition-colors p-1 hover:bg-white/5 rounded-md cursor-pointer"
           >
             <X className="h-4 w-4" />

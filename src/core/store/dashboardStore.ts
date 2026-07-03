@@ -10,6 +10,7 @@ import {
   AIContext,
 } from './dashboardTypes';
 import { calculateMetrics } from './dashboardUtils';
+import { threatService } from '../../services/threatService';
 
 /**
  * Application wide store (Dashboard Brain).
@@ -79,6 +80,9 @@ export const useDashboardStore = create<DashboardState>()(
 
     // Threat actions
     addThreat: (threat: Threat) => {
+      // Background sync
+      threatService.saveThreat(threat).catch(console.error);
+
       set(state => {
         const newThreats = [...state.threat.threats, threat];
         return {
@@ -163,6 +167,9 @@ export const useDashboardStore = create<DashboardState>()(
       set(state => ({ ai: { ...state.ai, generatedAt: date } }));
     },
     setThreats: (threats: Threat[]) => {
+      // Find new threats to save (simplistic approach: just save the last one if it's new, but typically we only care about newly generated ones. We'll let the hook handle saving for simulated threats, or we save all active threats).
+      // Actually, since setThreats is used for bulk replace, we won't spam DB here. We will just update state.
+      // The hook `useThreatFeed` will call `threatService.saveThreat` directly for newly generated threats.
       set(state => ({
         threat: { ...state.threat, threats },
         metrics: calculateMetrics(threats),

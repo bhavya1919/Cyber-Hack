@@ -3,8 +3,8 @@
 import React, { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from "recharts";
 import { useDashboardStore } from "@/core/store/dashboardStore";
-import { Activity, Shield, AlertTriangle, TrendingUp } from "lucide-react";
-import { motion } from "framer-motion";
+import { Activity, Shield, AlertTriangle, TrendingUp, Info } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function AnalyticsTab() {
   const threats = useDashboardStore((state) => state.threat.threats);
@@ -112,6 +112,31 @@ export function AnalyticsTab() {
 
   return (
     <div className="space-y-6 font-mono text-xs text-white/80 p-1">
+      <AnimatePresence>
+        {activeThreats.length === 0 && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }} 
+            animate={{ opacity: 1, height: "auto", marginBottom: 24 }} 
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-[#FF9F43]/10 border border-[#FF9F43]/30 text-[#FF9F43] px-4 py-3 rounded-xl flex items-center justify-between shadow-[0_0_15px_rgba(255,159,67,0.15)]">
+              <div className="flex items-center gap-3">
+                <Info className="h-4 w-4 shrink-0" />
+                <div>
+                  <div className="font-bold uppercase tracking-wider text-[10px]">Demo Threat Dataset Active</div>
+                  <div className="text-[9px] opacity-70 mt-0.5">No live threats detected. Switching to demonstration telemetry.</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-[9px] uppercase font-bold tracking-widest opacity-60">
+                <span>Standby</span>
+                <div className="h-1.5 w-1.5 rounded-full bg-[#FF9F43] animate-pulse" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Dynamic Summary Cards */}
       <motion.div
         initial="hidden"
@@ -157,28 +182,30 @@ export function AnalyticsTab() {
             <p className="text-[9px] text-white/40 mb-4">LOGGED ANOMALY VOLUME HISTOGRAM OVER TIME (TTP WAVEFORMS)</p>
           </div>
           <div className="flex-1 w-full min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={volumeData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="volCyan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00E5FF" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#00E5FF" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="volPurple" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6C63FF" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#6C63FF" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
-                <YAxis stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: "#05070A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "10px", fontFamily: "monospace" }}
-                  labelStyle={{ color: "rgba(255,255,255,0.5)" }}
-                />
-                <Area type="monotone" dataKey="volume" stroke="#00E5FF" strokeWidth={1.5} fillOpacity={1} fill="url(#volCyan)" name="Total Vol" />
-                <Area type="monotone" dataKey="secondary" stroke="#6C63FF" strokeWidth={1.2} fillOpacity={0.6} strokeDasharray="3 3" fill="url(#volPurple)" name="Critical Target" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {useMemo(() => (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={volumeData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="volCyan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00E5FF" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#00E5FF" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="volPurple" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6C63FF" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#6C63FF" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
+                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#05070A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "10px", fontFamily: "monospace" }}
+                    labelStyle={{ color: "rgba(255,255,255,0.5)" }}
+                  />
+                  <Area type="monotone" dataKey="volume" stroke="#00E5FF" strokeWidth={1.5} fillOpacity={1} fill="url(#volCyan)" name="Total Vol" />
+                  <Area type="monotone" dataKey="secondary" stroke="#6C63FF" strokeWidth={1.2} fillOpacity={0.6} strokeDasharray="3 3" fill="url(#volPurple)" name="Critical Target" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ), [volumeData])}
           </div>
         </motion.div>
 
@@ -189,20 +216,22 @@ export function AnalyticsTab() {
             <p className="text-[9px] text-white/40 mb-4">RECURRING BREACH TELEMETRY INDEXED BY VERTICAL MARKET</p>
           </div>
           <div className="flex-1 w-full min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sectorData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={8} tickLine={false} interval={0} />
-                <YAxis stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: "#05070A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "10px", fontFamily: "monospace" }}
-                />
-                <Bar dataKey="value" fill="#6C63FF" radius={[4, 4, 0, 0]} name="Breaches">
-                  {sectorData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#6C63FF" : "#00E5FF"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {useMemo(() => (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sectorData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                  <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={8} tickLine={false} interval={0} />
+                  <YAxis stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#05070A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "10px", fontFamily: "monospace" }}
+                  />
+                  <Bar dataKey="value" fill="#6C63FF" radius={[4, 4, 0, 0]} name="Breaches">
+                    {sectorData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#6C63FF" : "#00E5FF"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ), [sectorData])}
           </div>
         </motion.div>
 
@@ -214,23 +243,25 @@ export function AnalyticsTab() {
           </div>
           <div className="flex-1 flex items-center justify-between min-h-0">
             <div className="w-1/2 h-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={75}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
+              {useMemo(() => (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              ), [categoryData])}
             </div>
             
             {/* Legend info panel */}
@@ -255,16 +286,18 @@ export function AnalyticsTab() {
             <p className="text-[9px] text-white/40 mb-4">PRIMARY GEOGRAPHIC ATTRIBUTIONS FOR OUTBOUND TELEMETRY</p>
           </div>
           <div className="flex-1 w-full min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={countryData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <XAxis type="number" stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
-                <YAxis type="category" dataKey="country" stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: "#05070A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "10px", fontFamily: "monospace" }}
-                />
-                <Bar dataKey="count" fill="#00FFC8" radius={[0, 4, 4, 0]} name="Incursions" />
-              </BarChart>
-            </ResponsiveContainer>
+            {useMemo(() => (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart layout="vertical" data={countryData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <XAxis type="number" stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
+                  <YAxis type="category" dataKey="country" stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#05070A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "10px", fontFamily: "monospace" }}
+                  />
+                  <Bar dataKey="count" fill="#00FFC8" radius={[0, 4, 4, 0]} name="Incursions" />
+                </BarChart>
+              </ResponsiveContainer>
+            ), [countryData])}
           </div>
         </motion.div>
       </motion.div>

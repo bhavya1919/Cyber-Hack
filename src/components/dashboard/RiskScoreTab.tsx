@@ -198,10 +198,10 @@ export function RiskScoreTab() {
                 key={sg.id}
                 onClick={() => toggleSafeguard(sg.id)}
                 className={`p-4 rounded-2xl border transition-all duration-300 ease-out cursor-pointer flex flex-col justify-between
-                  hover:scale-[1.015] active:scale-[0.99] ${
+                  hover:-translate-y-1 active:scale-95 ${
                   isActive
-                    ? "bg-[#00FFC8]/5 border-[#00FFC8]/30 shadow-[0_0_15px_rgba(0,255,200,0.05)] hover:shadow-[0_0_25px_rgba(0,255,200,0.12)]"
-                    : "bg-white/[0.01] border-white/5 opacity-60 hover:opacity-100 hover:border-white/15"
+                    ? "bg-[#00FFC8]/5 border-[#00FFC8]/30 shadow-[0_0_15px_rgba(0,255,200,0.05)] hover:shadow-[0_0_20px_0px_rgba(0,229,255,0.10)]"
+                    : "bg-white/[0.01] border-white/5 opacity-60 hover:opacity-100 hover:border-white/15 hover:shadow-[0_0_20px_0px_rgba(0,229,255,0.10)]"
                 }`}
               >
                 <div>

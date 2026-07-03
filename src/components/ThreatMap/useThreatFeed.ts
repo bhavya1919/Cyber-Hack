@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { countryCoordinates } from "./countryCoordinates";
 import { useDashboardStore } from "@/core/store/dashboardStore";
+import { threatService } from "@/services/threatService";
 
 export interface Threat {
   id: string;
@@ -196,11 +197,29 @@ export function useThreatFeed() {
 
   // Main effect — runs once on mount, drives the simulator lifecycle
   useEffect(() => {
-    // Step 1: Simulate initial load
-    const loadTimer = setTimeout(() => {
-      setThreats(buildSeedThreats());
-      setIsLoading(false);
-    }, 1800);
+    // Step 1: Simulate initial load or fetch from DB
+    let isMounted = true;
+    const loadInitialData = async () => {
+      try {
+        const dbThreats = await threatService.fetchThreats(14);
+        if (isMounted) {
+          if (dbThreats && dbThreats.length > 0) {
+            setThreats(dbThreats);
+          } else {
+            setThreats(buildSeedThreats());
+          }
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error(err);
+        if (isMounted) {
+          setThreats(buildSeedThreats());
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadInitialData();
 
     // Step 2: Begin periodic updates after load completes
     const startInterval = setTimeout(() => {
@@ -212,11 +231,17 @@ export function useThreatFeed() {
         const currentThreats = useDashboardStore.getState().threat.threats as Threat[];
         
         // Age older threats into Mitigated
-        const aged = currentThreats.map((t, idx) =>
-          t.status === "Active" && currentThreats.length - idx > 5
-            ? { ...t, status: "Mitigated" as const }
-            : t
-        );
+        const aged = currentThreats.map((t, idx) => {
+          if (t.status === "Active" && currentThreats.length - idx > 5) {
+            threatService.updateThreatStatus(t.id, "Mitigated");
+            return { ...t, status: "Mitigated" as const };
+          }
+          return t;
+        });
+        
+        // Save the newly generated threat to DB
+        threatService.saveThreat(newThreat).catch(console.error);
+
         // Keep total list size bounded at 15
         const trimmed = aged.slice(-14);
         setThreats([...trimmed, newThreat]);
@@ -226,7 +251,7 @@ export function useThreatFeed() {
     }, 2000);
 
     return () => {
-      clearTimeout(loadTimer);
+      isMounted = false;
       clearTimeout(startInterval);
     };
   }, [setThreats]);

@@ -45,11 +45,11 @@ export const OverviewCard = ({
       onMouseLeave={onMouseLeave}
       className={`overview-card relative rounded-xl p-4 bg-black/35 backdrop-blur-md border cursor-pointer
         transition-all duration-300 ease-out will-change-[transform,opacity,box-shadow] ${
-        isHovered ? "border-current -translate-y-1.5" : "border-white/5"
+        isHovered ? "border-current -translate-y-1" : "border-white/5"
       }`}
       style={{
         boxShadow: isHovered
-          ? `0 0 24px 4px ${accentColor}35, 0 8px 20px rgba(0,0,0,0.4)`
+          ? `0 0 20px 0px ${accentColor}33, 0 8px 20px rgba(0,0,0,0.4)`
           : `0 0 8px 0px ${accentColor}08`,
         opacity: isDimmed ? 0.55 : 1.0,
       }}

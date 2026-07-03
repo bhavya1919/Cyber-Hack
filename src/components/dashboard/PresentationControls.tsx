@@ -1,10 +1,12 @@
 // src/components/dashboard/PresentationControls.tsx
 
 import React, { useEffect, useRef, useState } from "react";
-import { Play, Pause, FastForward, Film, Power, ShieldAlert, Zap } from "lucide-react";
+import { Play, Pause, FastForward, Film, Power, Zap } from "lucide-react";
 import { useDashboardStore } from "@/core/store/dashboardStore";
 import { countryCoordinates } from "../ThreatMap/countryCoordinates";
 import { Threat } from "../ThreatMap/useThreatFeed";
+import { speechManager } from "@/core/speech";
+import { simulationService } from "@/services/simulationService";
 
 const SCENARIOS = [
   { id: "Ransomware", name: "Ransomware Attack (LockBit)", actor: "BlackShadow", category: "Ransomware" },
@@ -25,6 +27,9 @@ export function PresentationControls() {
   
   const [isPlaying, setIsPlaying] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const simulationIdRef = useRef<string | null>(null);
+  const simulationStartTimeRef = useRef<number>(0);
+  const simulationThreatCountRef = useRef<number>(0);
 
   // Helper to generate threats specific to a scenario
   const makeScenarioThreat = (scenarioType: string): Threat => {
@@ -151,6 +156,17 @@ export function PresentationControls() {
       
       const trimmed = aged.slice(-14);
       setThreatsInStore([...trimmed, newThreat]);
+      simulationThreatCountRef.current += 1;
+
+      // Narrate critical threats occasionally (1-in-5) to avoid flood
+      if (newThreat.severity === "crit" && Math.random() > 0.8) {
+        speechManager.speak({
+          eventType: "critical_threat_detected",
+          actor: newThreat.attackerActor,
+          category: newThreat.category,
+          target: newThreat.targetCountry,
+        });
+      }
       
       // Automatically trigger AI Situation Report updates in the background during play
       const triggerAI = (useDashboardStore.getState() as any).triggerAIAnalysis;
@@ -171,9 +187,16 @@ export function PresentationControls() {
       setIsPlaying(false);
       setAutoplay(false);
       setScenario(null);
+      if (simulationIdRef.current) {
+        const durationSec = Math.floor((Date.now() - simulationStartTimeRef.current) / 1000);
+        simulationService.endSimulation(simulationIdRef.current, durationSec, simulationThreatCountRef.current).catch(console.error);
+        simulationIdRef.current = null;
+      }
+      speechManager.speak({ eventType: "presentation_stop" });
     } else {
       // default scenario to first
       setScenario("Ransomware");
+      speechManager.speak({ eventType: "presentation_start" });
     }
   };
 
@@ -181,6 +204,22 @@ export function PresentationControls() {
     const nextPlaying = !isPlaying;
     setIsPlaying(nextPlaying);
     setAutoplay(nextPlaying);
+    if (nextPlaying && presentation.scenario) {
+      simulationStartTimeRef.current = Date.now();
+      simulationThreatCountRef.current = 0;
+      simulationService.startSimulation(presentation.scenario, presentation.speed).then(id => {
+        if (id) simulationIdRef.current = id;
+      }).catch(console.error);
+
+      speechManager.speak({
+        eventType: "scenario_launched",
+        scenarioId: presentation.scenario,
+      });
+    } else if (!nextPlaying && simulationIdRef.current) {
+      const durationSec = Math.floor((Date.now() - simulationStartTimeRef.current) / 1000);
+      simulationService.endSimulation(simulationIdRef.current, durationSec, simulationThreatCountRef.current).catch(console.error);
+      simulationIdRef.current = null;
+    }
   };
 
   return (

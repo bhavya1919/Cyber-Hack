@@ -313,11 +313,15 @@ export function ThreatFeed({
 
         {/* ── Loading state ──────────────────────────────────────────────── */}
         {isLoading && (
-          <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-[#00E5FF]" />
-            <p className="text-xs font-mono text-white/40 uppercase tracking-widest">
-              Pulling threat intelligence…
-            </p>
+          <div className="flex flex-col gap-3 p-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-28 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse relative overflow-hidden">
+                 <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/5 to-transparent animate-[shimmer_1.5s_infinite]" />
+              </div>
+            ))}
+            <div className="text-center mt-4 text-[10px] font-mono text-[#00E5FF] uppercase tracking-widest animate-pulse">
+              Pulling threat intelligence...
+            </div>
           </div>
         )}
 

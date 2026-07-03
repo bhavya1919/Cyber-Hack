@@ -2,16 +2,9 @@
 
 import React, { useState, useMemo } from "react";
 import { FileText, Download, FilePlus, Calendar, ShieldCheck, Printer, ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useDashboardStore } from "@/core/store/dashboardStore";
-
-interface Report {
-  id: string;
-  title: string;
-  date: string;
-  type: string;
-  classification: "TLP:CLEAR" | "TLP:GREEN" | "TLP:AMBER" | "TLP:RED";
-  summary: string;
-}
+import { reportService, Report } from "@/services/reportService";
 
 const PAST_REPORTS: Report[] = [
   { id: "rep-1", title: "LockBit Ransomware Cluster Audit", date: "2026-07-02", type: "Threat Intelligence Brief", classification: "TLP:AMBER", summary: "Aggregated breach telemetry pointing to structured campaigns targeting regional hospital infrastructure grids." },
@@ -26,6 +19,25 @@ export function ReportsTab() {
   const [reports, setReports] = useState<Report[]>(PAST_REPORTS);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    reportService.fetchReports().then(dbReports => {
+      if (isMounted && dbReports && dbReports.length > 0) {
+        setReports(dbReports as Report[]);
+      }
+    }).catch(console.error);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedReportId(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => { 
+      isMounted = false; 
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   // Derive selected report details
   const activeReport = useMemo(() => {
@@ -55,6 +67,10 @@ export function ReportsTab() {
 
       setReports((prev) => [newRep, ...prev]);
       setSelectedReportId(newRep.id);
+      reportService.saveReport(newRep).catch(console.error);
+      toast.success(`Brief compiled: ${newRep.title}`, {
+        description: `Class: ${newRep.classification} | Live anomalies aggregated.`
+      });
       setIsCompiling(false);
     }, 1500);
   };
@@ -223,12 +239,16 @@ export function ReportsTab() {
             <button
               onClick={compileNewReport}
               disabled={isCompiling}
-              className="w-full text-center py-3 rounded-lg border border-[#00FFC8]/30 bg-[#00FFC8]/10 hover:bg-[#00FFC8]/25 text-[#00FFC8] uppercase font-bold tracking-wider cursor-pointer transition-all duration-300 ease-out hover:shadow-[0_0_20px_rgba(0,255,200,0.2)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none mt-6 active:scale-[0.97]"
+              className="relative overflow-hidden w-full text-center py-3 rounded-lg border border-[#00FFC8]/30 bg-[#00FFC8]/10 hover:bg-[#00FFC8]/25 text-[#00FFC8] uppercase font-bold tracking-wider cursor-pointer transition-all duration-300 ease-out hover:shadow-[0_0_20px_rgba(0,255,200,0.2)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none mt-6 active:scale-[0.97]"
             >
               {isCompiling ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>COMPILING DATA...</span>
+                  <div className="flex items-center gap-3">
+                    <div className="h-4 w-4 rounded-full border-2 border-[#00FFC8]/30 border-t-[#00FFC8] animate-spin" />
+                    <span className="animate-pulse">COMPILING DATA...</span>
+                  </div>
+                  {/* Subtle scanning line effect across the button */}
+                  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-[#00FFC8]/10 to-transparent animate-[shimmer_1.5s_infinite]" />
                 </>
               ) : (
                 <>
@@ -248,7 +268,7 @@ export function ReportsTab() {
                 <div
                   key={rep.id}
                   onClick={() => setSelectedReportId(rep.id)}
-                  className="p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] hover:border-[#00E5FF]/30 transition-all duration-300 ease-out cursor-pointer flex justify-between items-start gap-4 hover:scale-[1.005]"
+                  className="p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] hover:border-[#00E5FF]/30 transition-all duration-300 ease-out cursor-pointer flex justify-between items-start gap-4 hover:-translate-y-1 hover:shadow-[0_0_20px_0px_rgba(0,229,255,0.10)]"
                 >
                   <div className="space-y-1">
                     <h5 className="text-white font-bold text-xs">{rep.title}</h5>
