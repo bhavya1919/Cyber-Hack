@@ -12,6 +12,7 @@ export function CopilotTab() {
     pipelineSteps,
     sendMessage,
     clearHistory,
+    initSession,
   } = useCopilotStore();
 
   const [inputVal, setInputVal] = useState("");
@@ -26,8 +27,13 @@ export function CopilotTab() {
   };
 
   useEffect(() => {
+    initSession();
+  }, [initSession]);
+
+  useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
 
   const handleSend = async (text: string) => {
     if (!text.trim()) return;

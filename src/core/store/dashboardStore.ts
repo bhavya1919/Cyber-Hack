@@ -80,10 +80,40 @@ export const useDashboardStore = create<DashboardState>()(
 
     // Threat actions
     addThreat: (threat: Threat) => {
-      // Background sync
-      threatService.saveThreat(threat).catch(console.error);
+      // Optimistically add with mock id first for immediate UI feedback.
+      // Then saveThreat returns the real UUID from Supabase — we swap the id in state.
+      threatService.saveThreat(threat).then((realId) => {
+        if (realId && realId !== threat.id) {
+          // Patch the mock id with the real UUID in Zustand state
+          set(state => ({
+            threat: {
+              ...state.threat,
+              threats: state.threat.threats.map(t =>
+                t.id === threat.id ? { ...t, id: realId } : t
+              ),
+            },
+          }));
+        }
+      }).catch(console.error);
 
       set(state => {
+        // Prevent duplicate IDs if realtime fires immediately
+        const exists = state.threat.threats.some(t => t.id === threat.id);
+        if (exists) return state;
+
+        const newThreats = [...state.threat.threats, threat];
+        return {
+          threat: { ...state.threat, threats: newThreats },
+          metrics: calculateMetrics(newThreats),
+        };
+      });
+    },
+    addLocalThreat: (threat: Threat) => {
+      // Optimistically add without persisting to DB
+      set(state => {
+        const exists = state.threat.threats.some(t => t.id === threat.id);
+        if (exists) return state;
+
         const newThreats = [...state.threat.threats, threat];
         return {
           threat: { ...state.threat, threats: newThreats },

@@ -9,6 +9,7 @@ export const simulationService = {
       speed,
       started_at: new Date().toISOString(),
       threat_count: 0,
+      is_demo: true,
     });
 
     if (error) {
@@ -25,6 +26,7 @@ export const simulationService = {
         ended_at: new Date().toISOString(),
         duration: durationSec,
         threat_count: threatCount,
+        completed: true,
       })
       .eq("id", id);
 

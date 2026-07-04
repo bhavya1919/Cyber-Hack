@@ -95,4 +95,28 @@ export interface DashboardState {
   metrics: MetricsState;
   ui: UIState;
   presentation: PresentationMode;
+
+  // Actions
+  addThreat: (threat: Threat) => void;
+  addLocalThreat: (threat: Threat) => void;
+  removeThreat: (id: string) => void;
+  selectThreat: (id: string) => void;
+  hoverThreat: (id: string | null) => void;
+  undoSelection: () => void;
+  clearUndoStack: () => void;
+  enqueueToast: (toast: Toast) => void;
+  dequeueToast: (id: string) => void;
+  setPresentationEnabled: (enabled: boolean) => void;
+  setPresentationScenario: (scenario: PresentationMode['scenario']) => void;
+  setPresentationSpeed: (speed: number) => void;
+  setPresentationAutoplay: (autoplay: boolean) => void;
+  setAIStatus: (status: AIContext['status']) => void;
+  setAISummary: (summary: string) => void;
+  setAIRecommendations: (recs: string[]) => void;
+  setAIConfidence: (conf: number) => void;
+  setAIGeneratedAt: (date: Date) => void;
+  setThreats: (threats: Threat[]) => void;
+  setAIEngineRunning: (aiEngineRunning: boolean) => void;
+  updateAISituationReport: (report: Partial<AIContext>) => void;
+  triggerAIAnalysis: () => void;
 }

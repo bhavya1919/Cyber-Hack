@@ -28,21 +28,25 @@ export const reportService = {
       type: row.type,
       classification: row.classification,
       summary: row.summary,
+      markdown_content: row.markdown_content,
     }));
   },
 
-  async saveReport(report: Report) {
-    const { error } = await supabase.from("reports").insert({
-      id: report.id,
+  async saveReport(report: Report): Promise<string | null> {
+    const { data, error } = await supabase.from("reports").insert({
       title: report.title,
       type: report.type,
       classification: report.classification,
       summary: report.summary,
+      is_demo: true, // Mark frontend-generated as demo for now
       generated_at: new Date().toISOString(),
-    });
+    }).select("id").single();
 
     if (error) {
       console.error("Error saving report:", error);
+      return null;
     }
+    
+    return data?.id ?? null;
   },
 };

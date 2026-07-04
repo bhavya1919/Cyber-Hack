@@ -6,27 +6,29 @@ import { toast } from "sonner";
 import { useDashboardStore } from "@/core/store/dashboardStore";
 import { reportService, Report } from "@/services/reportService";
 
-const PAST_REPORTS: Report[] = [
-  { id: "rep-1", title: "LockBit Ransomware Cluster Audit", date: "2026-07-02", type: "Threat Intelligence Brief", classification: "TLP:AMBER", summary: "Aggregated breach telemetry pointing to structured campaigns targeting regional hospital infrastructure grids." },
-  { id: "rep-2", title: "Weekly Perimeter Vulnerability Scan", date: "2026-06-28", type: "Security Posture Report", classification: "TLP:GREEN", summary: "Audit of public interfaces and internet-facing network segments. Identified CVE exposures in DMZ VPN gateways." },
-  { id: "rep-3", title: "APT-441 Campaign Attribution Dossier", date: "2026-06-20", type: "Actor Attribution Profile", classification: "TLP:RED", summary: "Infrastructure mapping and TTP tracking for threat actor activities targeting financial transaction APIs." }
-];
+// Reports are loaded from Supabase — no hardcoded mocks.
 
 export function ReportsTab() {
   const threats = useDashboardStore((state) => state.threat.threats);
   const activeThreats = threats.filter((t) => t.status === "Active");
   
-  const [reports, setReports] = useState<Report[]>(PAST_REPORTS);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [isFetchingReports, setIsFetchingReports] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState(false);
 
   React.useEffect(() => {
     let isMounted = true;
+    setIsFetchingReports(true);
     reportService.fetchReports().then(dbReports => {
-      if (isMounted && dbReports && dbReports.length > 0) {
-        setReports(dbReports as Report[]);
+      if (isMounted) {
+        setReports((dbReports as Report[]) || []);
+        setIsFetchingReports(false);
       }
-    }).catch(console.error);
+    }).catch((err) => {
+      console.error("Failed to load reports from DB:", err);
+      if (isMounted) setIsFetchingReports(false);
+    });
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setSelectedReportId(null);
@@ -65,9 +67,17 @@ export function ReportsTab() {
         }.`
       };
 
+      // Optimistically add locally, then save to DB
       setReports((prev) => [newRep, ...prev]);
       setSelectedReportId(newRep.id);
-      reportService.saveReport(newRep).catch(console.error);
+      reportService.saveReport(newRep).then((realId) => {
+        if (realId && realId !== newRep.id) {
+          setReports(currentReports => 
+            currentReports.map(r => r.id === newRep.id ? { ...r, id: realId } : r)
+          );
+          setSelectedReportId(prevId => prevId === newRep.id ? realId : prevId);
+        }
+      }).catch(console.error);
       toast.success(`Brief compiled: ${newRep.title}`, {
         description: `Class: ${newRep.classification} | Live anomalies aggregated.`
       });

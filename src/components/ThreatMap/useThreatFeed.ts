@@ -110,6 +110,34 @@ const buildSeedThreats = (): Threat[] => [
   },
 ];
 
+const summaryMap: Record<string, string[]> = {
+  Ransomware: [
+    "Double-extortion ransomware campaign detected. Exfiltration preceded encryption. Backup deletion underway.",
+    "Ransomware operator deployed via compromised VPN endpoint. Active directory encryption in progress.",
+    "LockBit-style encryption pattern identified. Lateral movement observed across 4 network segments.",
+  ],
+  DDoS: [
+    "Volumetric DDoS campaign peaking at 320 Gbps. Botnet of ~9,000 compromised IoT nodes active.",
+    "HTTP GET flood targeting API gateway. Rate limiting engaged but thresholds exceeded.",
+    "NTP amplification attack detected. DNS scrubbing active on edge nodes.",
+  ],
+  Phishing: [
+    "Spear-phishing campaign impersonating Microsoft 365 login portal. Credential harvesting active.",
+    "CEO fraud campaign targeting finance department. Payroll redirection attempt detected.",
+    "Phishing emails with malicious PDF attachments distributed to 200+ enterprise mailboxes.",
+  ],
+  Malware: [
+    "Trojanized installer deployed on executive endpoints. C2 beacon detected on port 8443.",
+    "Drive-by exploit delivering remote access trojan. Process injection into svchost.exe confirmed.",
+    "Malicious PDF exploit chain delivered via spear-phish. Stage-2 payload awaiting execution.",
+  ],
+  Exploit: [
+    "SQL injection RCE exploit targeting exposed API gateway. Database exfiltration in progress.",
+    "Log4Shell RCE campaign targeting unpatched Java services across OT network segments.",
+    "SCADA Modbus hijack attempt detected. Industrial control system isolation recommended immediately.",
+  ],
+};
+
 function makeNewThreat(): Threat {
   const countries = Object.keys(countryCoordinates);
   let src = countries[Math.floor(Math.random() * countries.length)];
@@ -130,6 +158,9 @@ function makeNewThreat(): Threat {
   const numAssets = Math.random() > 0.5 ? 2 : 1;
   const affectedAssets = [...assets].sort(() => 0.5 - Math.random()).slice(0, numAssets);
 
+  const summaryOptions = summaryMap[category] || ["Threat activity detected. Investigation in progress."];
+  const summary = summaryOptions[Math.floor(Math.random() * summaryOptions.length)];
+
   return {
     id: `t-${Math.random().toString(36).substr(2, 9)}`,
     sourceCountry: src,
@@ -147,6 +178,7 @@ function makeNewThreat(): Threat {
     attackerActor: actor,
     attackVector,
     affectedAssets,
+    summary,
     confidence: Math.floor(Math.random() * 25) + 75,
   };
 }
@@ -197,8 +229,12 @@ export function useThreatFeed() {
 
   // Main effect — runs once on mount, drives the simulator lifecycle
   useEffect(() => {
-    // Step 1: Simulate initial load or fetch from DB
     let isMounted = true;
+    // Store handles in variables accessible by the cleanup closure
+    let interval: ReturnType<typeof setInterval> | null = null;
+    let sub: { unsubscribe: () => void } | null = null;
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
+
     const loadInitialData = async () => {
       try {
         const dbThreats = await threatService.fetchThreats(14);
@@ -222,37 +258,71 @@ export function useThreatFeed() {
     loadInitialData();
 
     // Step 2: Begin periodic updates after load completes
-    const startInterval = setTimeout(() => {
-      const interval = setInterval(() => {
+    startTimer = setTimeout(() => {
+      interval = setInterval(() => {
         if (pausedRef.current) return;
         const newThreat = makeNewThreat();
-        
+
         // Use Zustand state directly to get fresh value
         const currentThreats = useDashboardStore.getState().threat.threats as Threat[];
-        
-        // Age older threats into Mitigated
-        const aged = currentThreats.map((t, idx) => {
+
+        // Age older threats into Mitigated locally, and conditionally to DB if UUID
+        const agedThreats = currentThreats.map((t, idx) => {
           if (t.status === "Active" && currentThreats.length - idx > 5) {
-            threatService.updateThreatStatus(t.id, "Mitigated");
-            return { ...t, status: "Mitigated" as const };
+            // Only update DB if it's a real UUID (not a mock t-xxxx ID)
+            if (!t.id.startsWith("t-")) {
+              threatService.updateThreatStatus(t.id, "Mitigated");
+            }
+            return { ...t, status: "Mitigated" };
           }
           return t;
         });
-        
-        // Save the newly generated threat to DB
-        threatService.saveThreat(newThreat).catch(console.error);
 
-        // Keep total list size bounded at 15
-        const trimmed = aged.slice(-14);
-        setThreats([...trimmed, newThreat]);
+        useDashboardStore.getState().setThreats(agedThreats as Threat[]);
+
+        // Generate new threat and add via store (UI-only, does not save to DB)
+        useDashboardStore.getState().addLocalThreat(newThreat as any);
+
+        // Keep total list size bounded at 15 by trimming old ones
+        const updatedThreats = useDashboardStore.getState().threat.threats as Threat[];
+        if (updatedThreats.length > 15) {
+          setThreats(updatedThreats.slice(-15));
+        }
       }, 4000);
 
-      return () => clearInterval(interval);
+      sub = threatService.subscribeToThreats((payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newT = payload.new;
+          // Ignore duplicates to prevent feedback loops
+          const exists = useDashboardStore.getState().threat.threats.some(t => t.id === newT.id);
+          if (exists) return;
+
+          const threatData: Threat = {
+            id: newT.id,
+            severity: newT.severity,
+            category: newT.category,
+            sourceCountry: newT.source_country,
+            targetCountry: newT.target_country,
+            sector: newT.target_industry,
+            attackVector: newT.attack_vector,
+            affectedAssets: newT.affected_assets || [],
+            status: newT.status,
+            confidence: newT.confidence,
+            attackerActor: newT.attacker_actor,
+            summary: newT.summary,
+            time: new Date(newT.created_at).toTimeString().split(" ")[0],
+          };
+          useDashboardStore.getState().addLocalThreat(threatData);
+        }
+      });
     }, 2000);
 
+    // THIS cleanup now correctly tears down both the interval AND the subscription
     return () => {
       isMounted = false;
-      clearTimeout(startInterval);
+      if (startTimer) clearTimeout(startTimer);
+      if (interval) clearInterval(interval);
+      if (sub) sub.unsubscribe();
     };
   }, [setThreats]);
 

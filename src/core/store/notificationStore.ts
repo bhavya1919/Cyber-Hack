@@ -46,128 +46,40 @@ interface NotificationState {
 }
 
 // ─────────────────────────────────────────────────
-// Seed notifications — realistic enterprise intel
+// Seed notifications — moving to DB
 // ─────────────────────────────────────────────────
-
-const SEED_NOTIFICATIONS: Notification[] = [
-  {
-    id: "n-001",
-    title: "APT Group Activity Detected",
-    message:
-      "Lazarus Group TTPs matched across 3 endpoint beacons. C2 communication pattern identified on port 8443.",
-    severity: "critical",
-    category: "threat",
-    timestamp: Date.now() - 1000 * 60 * 2,
-    isRead: false,
-    source: "EDR Engine",
-  },
-  {
-    id: "n-002",
-    title: "Lateral Movement Attempt",
-    message:
-      "Unusual SMB traversal from 192.168.1.47 → 192.168.1.201. Credential spraying pattern detected.",
-    severity: "high",
-    category: "anomaly",
-    timestamp: Date.now() - 1000 * 60 * 8,
-    isRead: false,
-    source: "Network Monitor",
-  },
-  {
-    id: "n-003",
-    title: "Zero-Day CVE Ingested",
-    message:
-      "CVE-2025-31711 added to threat intelligence feed. CVSS Score: 9.8. Affects OpenSSL ≤ 3.1.x.",
-    severity: "critical",
-    category: "intel",
-    timestamp: Date.now() - 1000 * 60 * 15,
-    isRead: false,
-    source: "Threat Feed",
-  },
-  {
-    id: "n-004",
-    title: "Compliance Drift Detected",
-    message:
-      "SOC 2 Type II control CA-09 is non-compliant. Encryption-at-rest disabled on 2 storage volumes.",
-    severity: "medium",
-    category: "compliance",
-    timestamp: Date.now() - 1000 * 60 * 30,
-    isRead: true,
-    source: "GRC Module",
-  },
-  {
-    id: "n-005",
-    title: "Phishing Campaign Wave",
-    message:
-      "12 inbound emails matched Emotet lure template. Campaign targeting finance department.",
-    severity: "high",
-    category: "threat",
-    timestamp: Date.now() - 1000 * 60 * 45,
-    isRead: false,
-    source: "Email Gateway",
-  },
-  {
-    id: "n-006",
-    title: "AI Copilot Model Updated",
-    message:
-      "Rule-based intent engine upgraded. 14 new threat patterns registered across 3 intent classes.",
-    severity: "info",
-    category: "system",
-    timestamp: Date.now() - 1000 * 60 * 60,
-    isRead: true,
-    source: "AI Engine",
-  },
-  {
-    id: "n-007",
-    title: "DNS Tunneling Pattern",
-    message:
-      "Abnormal DNS query volume from endpoint WS-0093. Potential data exfiltration via DNS covert channel.",
-    severity: "high",
-    category: "anomaly",
-    timestamp: Date.now() - 1000 * 60 * 90,
-    isRead: true,
-    source: "DNS Analyzer",
-  },
-  {
-    id: "n-008",
-    title: "Ransomware Signature Match",
-    message:
-      "LockBit 3.0 file encryption pattern detected on shared drive \\\\FILESRV01\\HR. Quarantine initiated.",
-    severity: "critical",
-    category: "threat",
-    timestamp: Date.now() - 1000 * 60 * 120,
-    isRead: true,
-    source: "AV Engine",
-  },
-];
-
-// ─────────────────────────────────────────────────
-// Store
-// ─────────────────────────────────────────────────
+import { notificationService } from "../../services/notificationService";
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
-  notifications: SEED_NOTIFICATIONS,
+  notifications: [],
   isPanelOpen: false,
 
   openPanel: () => set({ isPanelOpen: true }),
   closePanel: () => set({ isPanelOpen: false }),
-  togglePanel: () => set((s) => ({ isPanelOpen: !s.isPanelOpen })),
+  togglePanel: () => set((state) => ({ isPanelOpen: !state.isPanelOpen })),
 
-  markAsRead: (id) =>
-    set((s) => ({
-      notifications: s.notifications.map((n) =>
+  markAsRead: (id) => {
+    notificationService.markAsRead(id).catch(console.error);
+    set((state) => ({
+      notifications: state.notifications.map((n) =>
         n.id === id ? { ...n, isRead: true } : n
       ),
-    })),
+    }));
+  },
 
-  markAllAsRead: () =>
-    set((s) => ({
-      notifications: s.notifications.map((n) => ({ ...n, isRead: true })),
-    })),
+  markAllAsRead: () => {
+    notificationService.markAllAsRead().catch(console.error);
+    set((state) => ({
+      notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
+    }));
+  },
 
-  dismissNotification: (id) =>
-    set((s) => ({
-      notifications: s.notifications.filter((n) => n.id !== id),
-    })),
+  dismissNotification: (id) => {
+    notificationService.dismissNotification(id).catch(console.error);
+    set((state) => ({
+      notifications: state.notifications.filter((n) => n.id !== id),
+    }));
+  },
 
   addNotification: (notif) => {
     const newNotif: Notification = {
@@ -259,3 +171,33 @@ export function startNotificationLiveStream() {
   // First alert in 20–35 seconds after load
   setTimeout(fire, 20_000 + Math.random() * 15_000);
 }
+
+// Initialize store with DB and subscribe
+export const initNotificationStore = async () => {
+  // Fetch initial
+  const initialNotifs = await notificationService.fetchNotifications();
+  useNotificationStore.setState({ notifications: initialNotifs });
+
+  // Subscribe
+  notificationService.subscribeToNotifications(
+    (notif) => {
+      useNotificationStore.setState((state) => {
+        if (state.notifications.some(n => n.id === notif.id)) return state;
+        return { notifications: [notif, ...state.notifications] };
+      });
+    },
+    (notifPartial) => {
+      useNotificationStore.setState((state) => ({
+        notifications: state.notifications.map((n) =>
+          n.id === notifPartial.id ? { ...n, ...notifPartial } : n
+        )
+      }));
+    },
+    (id) => {
+      useNotificationStore.setState((state) => ({
+        notifications: state.notifications.filter((n) => n.id !== id)
+      }));
+    }
+  );
+};
+

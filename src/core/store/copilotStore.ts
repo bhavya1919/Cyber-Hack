@@ -35,7 +35,30 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
   },
   reasoningLogs: INITIAL_LOGS,
   isTyping: false,
-  pipelineSteps: [],
+  sessionId: null as string | null,
+
+  initSession: async () => {
+    // Basic setup for demo: fetch recent session or create one
+    const { copilotService } = await import("../../services/copilotService");
+    const sessions = await copilotService.fetchSessions();
+    if (sessions && sessions.length > 0) {
+      const activeSession = sessions[0];
+      const msgs = await copilotService.fetchMessages(activeSession.id);
+      
+      set({ 
+        sessionId: activeSession.id,
+        messages: msgs.length > 0 ? msgs : INITIAL_MESSAGES,
+        memory: { messages: msgs.length > 0 ? msgs : INITIAL_MESSAGES, timestamp: Date.now() }
+      });
+    } else {
+      const newSession = await copilotService.createSession("Live Operations Session");
+      if (newSession) {
+        set({ sessionId: newSession.id });
+        // Save initial message to DB
+        await copilotService.saveMessage(newSession.id, INITIAL_MESSAGES[0]);
+      }
+    }
+  },
 
   sendMessage: async (text: string) => {
     if (!text.trim()) return;
@@ -50,7 +73,15 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
       timestamp: timeStr,
     };
 
-    // 1. Add analyst message to history
+    const state = get();
+    const sessionId = state.sessionId;
+    const { copilotService } = await import("../../services/copilotService");
+
+    // 1. Add analyst message to history and DB
+    if (sessionId) {
+      copilotService.saveMessage(sessionId, userMsg).catch(console.error);
+    }
+
     set((state) => {
       const newMessages = [...state.messages, userMsg];
       return {
@@ -152,6 +183,11 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
       timestamp: new Date().toTimeString().split(" ")[0],
     };
 
+    if (sessionId) {
+      copilotService.saveMessage(sessionId, copilotMsg, intent.type, intent.confidence).catch(console.error);
+      copilotService.updateSessionIntent(sessionId, intent.type, get().messages.length + 1).catch(console.error);
+    }
+
     set((state) => {
       const newMessages = [...state.messages, copilotMsg];
       const newMemory: ConversationMemory = {
@@ -174,6 +210,7 @@ export const useCopilotStore = create<CopilotState>((set, get) => ({
   },
 
   clearHistory: () => {
+    // Optionally create a new session here, but for now just clear local state
     set({
       messages: INITIAL_MESSAGES,
       memory: {
